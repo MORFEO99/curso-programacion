@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aula Social | Programación Avanzada</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+:root{
+  --azul:#003399;--azul2:#4267B2;--rojo:#D31111;--amarillo:#FFCC00;
+  --fondo:#eef1f6;--texto:#1c1e21;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--texto);font-family:Segoe UI,Arial,sans-serif}
+.hidden{display:none!important}
+.card{border:0;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.topbar{height:62px;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:1000}
+.logo{font-weight:800;color:var(--azul);font-size:1.35rem}
+.search{background:#f0f2f5;border:0;border-radius:20px;padding:9px 15px;outline:none}
+.avatar{width:42px;height:42px;border-radius:50%;object-fit:cover;background:#ddd}
+.avatar-lg{width:120px;height:120px;border-radius:50%;object-fit:cover;border:5px solid #fff}
+.cover{height:190px;border-radius:12px 12px 0 0;background:linear-gradient(135deg,#003399,#4267B2,#87a5e7)}
+.layout{max-width:1250px;margin:auto}
+.sidebar{position:sticky;top:78px}
+.menu-item{padding:11px;border-radius:8px;font-weight:600;cursor:pointer}
+.menu-item:hover,.menu-item.active{background:#e7efff;color:var(--azul)}
+.btn-blue{background:var(--azul);color:#fff}.btn-blue:hover{background:#00266f;color:#fff}
+.btn-red{background:var(--rojo);color:#fff}.btn-red:hover{background:#a70d0d;color:#fff}
+.story{height:130px;border-radius:12px;background:linear-gradient(135deg,#003399,#698cda);color:#fff;position:relative;overflow:hidden}
+.story img{position:absolute;right:8px;bottom:8px;width:45px;height:45px;border:3px solid white;border-radius:50%}
+.story-title{position:absolute;bottom:10px;left:10px;font-weight:700}
+.post-header{display:flex;gap:10px;align-items:center}
+.post-text{white-space:pre-wrap}
+.like-btn{cursor:pointer;color:#65676b}.like-btn.liked{color:var(--rojo);font-weight:700}
+.profile-cover{height:230px}
+.profile-info{margin-top:-65px}
+.stat{font-size:1.35rem;font-weight:800}
+.small-muted{font-size:.82rem;color:#6c757d}
+.badge-yellow{background:var(--amarillo);color:#111}
+.pet-img{height:190px;width:100%;object-fit:cover;border-radius:10px 10px 0 0;background:#e9ecef}
+.login-screen{min-height:100vh;background:linear-gradient(135deg,#003399,#4267B2);display:flex;align-items:center}
+.login-card{max-width:440px;margin:auto}
+.viewer{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #eee}
+@media(max-width:991px){.sidebar{position:static}.rightbar{display:none}}
+</style>
+</head>
+
+<body>
+
+<!-- ================= LOGIN / REGISTRO ================= -->
+<div id="authScreen" class="login-screen">
+<div class="container">
+<div class="card login-card p-4">
+  <div class="text-center mb-4">
+    <div class="logo fs-2">🎓 Aula Social</div>
+    <div class="text-muted">Programación Avanzada · Un solo curso</div>
+  </div>
+
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><button id="loginTab" class="nav-link active">Iniciar sesión</button></li>
+    <li class="nav-item"><button id="registerTab" class="nav-link">Registrarse</button></li>
+  </ul>
+
+  <form id="loginForm">
+    <input id="loginEmail" type="email" class="form-control mb-2" placeholder="Correo electrónico" required>
+    <input id="loginPassword" type="password" class="form-control mb-3" placeholder="Contraseña" required>
+    <button class="btn btn-blue w-100">Iniciar sesión</button>
+  </form>
+
+  <form id="registerForm" class="hidden">
+    <input id="regName" class="form-control mb-2" placeholder="Nombre completo" required>
+    <input id="regCareer" class="form-control mb-2" placeholder="Carrera / paralelo" required>
+    <input id="regEmail" type="email" class="form-control mb-2" placeholder="Correo electrónico" required>
+    <input id="regPassword" type="password" class="form-control mb-3" placeholder="Contraseña" required>
+    <button class="btn btn-red w-100">Crear cuenta</button>
+  </form>
+
+  <div id="authMessage" class="text-center small mt-3"></div>
+</div>
+</div>
+</div>
+
+<!-- ================= APLICACIÓN ================= -->
+<div id="appScreen" class="hidden">
+
+<header class="topbar">
+<div class="container-fluid h-100 d-flex align-items-center gap-3">
+  <div class="logo">🎓 Aula Social</div>
+  <input id="searchInput" class="search flex-grow-1 d-none d-md-block" placeholder="Buscar compañeros...">
+  <div class="d-flex align-items-center gap-2">
+    <span id="topName" class="d-none d-md-inline fw-semibold"></span>
+    <img id="topAvatar" class="avatar">
+    <button id="logoutBtn" class="btn btn-outline-danger btn-sm">Salir</button>
+  </div>
+</div>
+</header>
+
+<div class="layout container-fluid py-3">
+<div class="row g-3">
+
+<!-- ================= MENÚ IZQUIERDO ================= -->
+<aside class="col-lg-3">
+<div class="sidebar">
+<div class="card p-3 mb-3 text-center">
+  <img id="sideAvatar" class="avatar mx-auto" style="width:80px;height:80px">
+  <h6 id="sideName" class="mt-2 mb-0"></h6>
+  <small id="sideCareer" class="text-muted"></small>
+</div>
+
+<div class="card p-2">
+  <div class="menu-item active" data-page="inicio"><i class="bi bi-house-fill me-2"></i>Inicio</div>
+  <div class="menu-item" data-page="perfil"><i class="bi bi-person-fill me-2"></i>Mi perfil</div>
+  <div class="menu-item" data-page="compañeros"><i class="bi bi-people-fill me-2"></i>Compañeros</div>
+  <div class="menu-item" data-page="publicaciones"><i class="bi bi-newspaper me-2"></i>Publicaciones</div>
+  <div class="menu-item" data-page="mascotas"><i class="bi bi-heart-fill me-2"></i>Adopción</div>
+  <div class="menu-item" data-page="estudiantes"><i class="bi bi-mortarboard-fill me-2"></i>Estudiantes</div>
+  <div class="menu-item" data-page="calculadora"><i class="bi bi-calculator-fill me-2"></i>Calculadora</div>
+  <div class="menu-item" data-page="fibonacci"><i class="bi bi-diagram-3-fill me-2"></i>Fibonacci</div>
+  <div class="menu-item" data-page="visitas"><i class="bi bi-eye-fill me-2"></i>Mis visitas</div>
+</div>
+</div>
+</aside>
+
+<!-- ================= CONTENIDO ================= -->
+<main id="content" class="col-lg-6"></main>
+
+<!-- ================= PANEL DERECHO ================= -->
+<aside class="col-lg-3 rightbar">
+<div class="card p-3 mb-3">
+  <h6>👥 Compañeros</h6>
+  <div id="peopleMini"></div>
+</div>
+<div class="card p-3">
+  <h6>👁 Actividad de tu perfil</h6>
+  <div id="activityMini"></div>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+
+<script>
+/* ================================================================
+   AULA SOCIAL - SISTEMA INTEGRADO PARA UN SOLO CURSO
+
+   Funciones:
+   - Registro e inicio de sesión
+   - Perfiles
+   - Publicaciones y "Me gusta"
+   - Registro de visitas a perfiles
+   - Número de visitas por persona
+   - Compañeros
+   - Adopción de mascotas
+   - Registro de estudiantes
+   - Calculadora
+   - Fibonacci
+
+   NOTA:
+   Esta versión usa localStorage para funcionar como prototipo
+   sin servidor. Para uso real entre diferentes dispositivos se
+   debe conectar a un backend y una base de datos.
+================================================================ */
+
+const K={
+ users:'aula_users',
+ posts:'aula_posts',
+ pets:'aula_pets',
+ students:'aula_students',
+ views:'aula_views',
+ session:'aula_session'
+};
+
+let users=JSON.parse(localStorage.getItem(K.users)||'[]');
+let posts=JSON.parse(localStorage.getItem(K.posts)||'[]');
+let pets=JSON.parse(localStorage.getItem(K.pets)||'[]');
+let students=JSON.parse(localStorage.getItem(K.students)||'[]');
+let views=JSON.parse(localStorage.getItem(K.views)||'[]');
+let session=localStorage.getItem(K.session);
+let currentPage='inicio';
+
+function saveAll(){
+ localStorage.setItem(K.users,JSON.stringify(users));
+ localStorage.setItem(K.posts,JSON.stringify(posts));
+ localStorage.setItem(K.pets,JSON.stringify(pets));
+ localStorage.setItem(K.students,JSON.stringify(students));
+ localStorage.setItem(K.views,JSON.stringify(views));
+}
+function user(){return users.find(x=>x.id===session)}
+function avatar(name){
+ return 'https://ui-avatars.com/api/?name='+encodeURIComponent(name)+'&background=003399&color=fff&size=200';
+}
+function esc(v){
+ const d=document.createElement('div');d.textContent=v??'';return d.innerHTML;
+}
+function dateText(iso){
+ return new Date(iso).toLocaleString('es-BO',{dateStyle:'short',timeStyle:'short'});
+}
+
+function showApp(){
+ if(!user()){showAuth();return}
+ authScreen.classList.add('hidden');
+ appScreen.classList.remove('hidden');
+ topName.textContent=user().nombre;
+ topAvatar.src=avatar(user().nombre);
+ sideAvatar.src=avatar(user().nombre);
+ sideName.textContent=user().nombre;
+ sideCareer.textContent=user().carrera;
+ renderPeopleMini();
+ renderActivityMini();
+ renderPage(currentPage);
+}
+function showAuth(){
+ authScreen.classList.remove('hidden');
+ appScreen.classList.add('hidden');
+}
+
+loginTab.onclick=()=>{
+ loginTab.classList.add('active');registerTab.classList.remove('active');
+ loginForm.classList.remove('hidden');registerForm.classList.add('hidden');
+};
+registerTab.onclick=()=>{
+ registerTab.classList.add('active');loginTab.classList.remove('active');
+ registerForm.classList.remove('hidden');loginForm.classList.add('hidden');
+};
+
+registerForm.addEventListener('submit',e=>{
+ e.preventDefault();
+ const email=regEmail.value.trim().toLowerCase();
+ if(users.some(x=>x.email===email)){
+  authMessage.textContent='El correo ya está registrado.';
+  authMessage.className='text-center small mt-3 text-danger';return;
+ }
+ const nuevo={
+  id:'u_'+Date.now(),
+  nombre:regName.value.trim(),
+  carrera:regCareer.value.trim(),
+  email:email,
+  password:regPassword.value,
+  fecha:new Date().toISOString()
+ };
+ users.push(nuevo);
+ session=nuevo.id;
+ localStorage.setItem(K.session,session);
+ saveAll();showApp();
+});
+
+loginForm.addEventListener('submit',e=>{
+ e.preventDefault();
+ const email=loginEmail.value.trim().toLowerCase();
+ const encontrado=users.find(x=>x.email===email&&x.password===loginPassword.value);
+ if(!encontrado){
+  authMessage.textContent='Correo o contraseña incorrectos.';
+  authMessage.className='text-center small mt-3 text-danger';return;
+ }
+ session=encontrado.id;
+ localStorage.setItem(K.session,session);
+ showApp();
+});
+
+logoutBtn.onclick=()=>{
+ localStorage.removeItem(K.session);session=null;showAuth();
+};
+
+document.querySelectorAll('.menu-item').forEach(item=>{
+ item.onclick=()=>{
+  document.querySelectorAll('.menu-item').forEach(x=>x.classList.remove('active'));
+  item.classList.add('active');
+  currentPage=item.dataset.page;
+  renderPage(currentPage);
+ };
+});
+
+function renderPage(page){
+ const c=document.getElementById('content');
+ if(page==='inicio')c.innerHTML=homePage();
+ if(page==='perfil')c.innerHTML=profilePage(session);
+ if(page==='compañeros')c.innerHTML=peoplePage();
+ if(page==='publicaciones')c.innerHTML=postsPage();
+ if(page==='mascotas')c.innerHTML=petsPage();
+ if(page==='estudiantes')c.innerHTML=studentsPage();
+ if(page==='calculadora')c.innerHTML=calculatorPage();
+ if(page==='fibonacci')c.innerHTML=fibonacciPage();
+ if(page==='visitas')c.innerHTML=viewsPage();
+ bindPage(page);
+}
+
+function homePage(){
+ const u=user();
+ return `
+ <div class="card mb-3">
+   <div class="cover"></div>
+   <div class="p-3 pt-0">
+     <img src="${avatar(u.nombre)}" class="avatar-lg profile-info">
+     <h3 class="mt-2 mb-0">${esc(u.nombre)}</h3>
+     <div class="text-muted">${esc(u.carrera)}</div>
+     <div class="mt-2">
+       <span class="badge badge-yellow">${users.length} compañeros</span>
+       <span class="badge bg-secondary">${posts.length} publicaciones</span>
+     </div>
+   </div>
+ </div>
+
+ <div class="card p-3 mb-3">
+  <div class="post-header">
+   <img src="${avatar(u.nombre)}" class="avatar">
+   <input id="quickPost" class="form-control" placeholder="¿Qué quieres compartir con el curso?">
+  </div>
+  <div class="d-grid mt-3"><button id="quickPostBtn" class="btn btn-blue">Publicar</button></div>
+ </div>
+
+ <div class="card p-2 mb-3">
+  <h6 class="px-2 pt-2">Historias del curso</h6>
+  <div class="row g-2">
+   ${users.slice(0,4).map(x=>`
+   <div class="col-6 col-md-3">
+    <div class="story">
+     <img src="${avatar(x.nombre)}">
+     <div class="story-title">${esc(x.nombre.split(' ')[0])}</div>
+    </div>
+   </div>`).join('')}
+  </div>
+ </div>
+
+ ${posts.slice().reverse().slice(0,5).map(postHTML).join('')||emptyCard('Todavía no hay publicaciones.')}
+ `;
+}
+
+function postHTML(p){
+ const u=users.find(x=>x.id===p.userId);
+ if(!u)return '';
+ const liked=(p.likes||[]).includes(session);
+ return `
+ <div class="card p-3 mb-3">
+  <div class="post-header">
+   <img src="${avatar(u.nombre)}" class="avatar">
+   <div><b>${esc(u.nombre)}</b><br><small class="text-muted">${esc(u.carrera)} · ${dateText(p.fecha)}</small></div>
+  </div>
+  <div class="post-text my-3">${esc(p.texto)}</div>
+  <hr class="my-2">
+  <div class="d-flex justify-content-between">
+   <span class="like-btn ${liked?'liked':''}" onclick="likePost('${p.id}')">
+    <i class="bi bi-heart-fill"></i> ${liked?'Te gusta':'Me gusta'} ${(p.likes||[]).length}
+   </span>
+   <span class="text-muted"><i class="bi bi-chat"></i> ${p.comentarios||0} comentarios</span>
+  </div>
+ </div>`;
+}
+
+function createPost(text){
+ if(!text.trim())return;
+ posts.push({id:'p_'+Date.now(),userId:session,texto:text.trim(),fecha:new Date().toISOString(),likes:[],comentarios:0});
+ saveAll();renderPage(currentPage);
+}
+function likePost(id){
+ const p=posts.find(x=>x.id===id);if(!p)return;
+ p.likes=p.likes||[];
+ const i=p.likes.indexOf(session);
+ if(i>=0)p.likes.splice(i,1);else p.likes.push(session);
+ saveAll();renderPage(currentPage);
+}
+
+function postsPage(){
+ return `<div class="card p-3 mb-3">
+  <h4>📝 Publicaciones del curso</h4>
+  <textarea id="postText" class="form-control mb-2" rows="3" placeholder="Escribe algo relacionado con Programación Avanzada..."></textarea>
+  <button id="postBtn" class="btn btn-blue">Publicar</button>
+ </div>
+ ${posts.slice().reverse().map(postHTML).join('')||emptyCard('No existen publicaciones.')}`;
+}
+
+function profilePage(id){
+ const u=users.find(x=>x.id===id);if(!u)return emptyCard('Perfil no encontrado.');
+ const incoming=views.filter(v=>v.vistoId===id);
+ const unique=new Set(incoming.map(v=>v.visitanteId)).size;
+ return `
+ <div class="card mb-3">
+  <div class="cover profile-cover"></div>
+  <div class="text-center profile-info px-3 pb-4">
+   <img src="${avatar(u.nombre)}" class="avatar-lg">
+   <h2 class="mt-2">${esc(u.nombre)}</h2>
+   <p class="text-muted mb-1">${esc(u.carrera)}</p>
+   <p class="small-muted">Miembro del curso desde ${new Date(u.fecha).toLocaleDateString('es-BO')}</p>
+   <div class="row mt-3">
+    <div class="col"><div class="stat">${posts.filter(p=>p.userId===id).length}</div><small>Publicaciones</small></div>
+    <div class="col"><div class="stat">${unique}</div><small>Personas</small></div>
+    <div class="col"><div class="stat">${incoming.length}</div><small>Visitas</small></div>
+   </div>
+  </div>
+ </div>
+ <div class="card p-3 mb-3">
+  <h5>Información</h5>
+  <p class="mb-1"><b>Carrera:</b> ${esc(u.carrera)}</p>
+  <p class="mb-0"><b>Correo:</b> ${esc(u.email)}</p>
+ </div>
+ ${posts.filter(p=>p.userId===id).slice().reverse().map(postHTML).join('')}
+ `;
+}
+
+function openUserProfile(id){
+ if(id!==session){
+  views.push({
+   id:'v_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+   visitanteId:session,vistoId:id,fecha:new Date().toISOString()
+  });
+  saveAll();
+ }
+ renderPage('perfil');
+ renderPeopleMini();renderActivityMini();
+}
+
+function peoplePage(){
+ return `<div class="card p-3">
+ <h4>👥 Compañeros del curso</h4>
+ <p class="text-muted">Haz clic en una persona para visitar su perfil.</p>
+ <div class="row g-3">
+ ${users.filter(x=>x.id!==session).map(u=>`
+ <div class="col-md-6">
+  <div class="card p-3 border clickable" onclick="openUserProfile('${u.id}')">
+   <div class="d-flex align-items-center gap-3">
+    <img src="${avatar(u.nombre)}" class="avatar" style="width:60px;height:60px">
+    <div><h6 class="mb-1">${esc(u.nombre)}</h6><small>${esc(u.carrera)}</small></div>
+   </div>
+  </div>
+ </div>`).join('')||'<p>No hay otros usuarios registrados.</p>'}
+ </div></div>`;
+}
+
+function petsPage(){
+ return `<div class="card p-3 mb-3">
+ <h4>🐾 Adopción de mascotas</h4>
+ <form id="petForm" class="row g-2">
+  <div class="col-md-6"><input id="petName" class="form-control" placeholder="Nombre de mascota" required></div>
+  <div class="col-md-6"><select id="petSpecies" class="form-select"><option>Perro</option><option>Gato</option><option>Otro</option></select></div>
+  <div class="col-md-6"><input id="petAge" type="number" min="0" class="form-control" placeholder="Edad" required></div>
+  <div class="col-md-6"><input id="petBreed" class="form-control" placeholder="Raza" required></div>
+  <div class="col-12"><textarea id="petDesc" class="form-control" placeholder="Descripción e historia" required></textarea></div>
+  <div class="col-12"><button class="btn btn-red">Registrar mascota</button></div>
+ </form></div>
+ <div class="row g-3">
+ ${pets.map(p=>`
+ <div class="col-md-6">
+  <div class="card overflow-hidden">
+   <div class="p-3">
+    <span class="badge ${p.estado==='Disponible'?'bg-success':'bg-secondary'}">${p.estado}</span>
+    <h5 class="mt-2">${esc(p.nombre)}</h5>
+    <div class="small-muted">${esc(p.especie)} · ${p.edad} años · ${esc(p.raza)}</div>
+    <p class="mt-2">${esc(p.descripcion)}</p>
+    <button class="btn btn-sm btn-blue" onclick="togglePet('${p.id}')">${p.estado==='Disponible'?'Marcar adoptado':'Marcar disponible'}</button>
+   </div>
+  </div>
+ </div>`).join('')||'<div class="col-12"><p class="text-muted">No hay mascotas registradas.</p></div>'}
+ </div>`;
+}
+function togglePet(id){
+ const p=pets.find(x=>x.id===id);if(!p)return;
+ p.estado=p.estado==='Disponible'?'Adoptado':'Disponible';saveAll();renderPage('mascotas');
+}
+
+function studentsPage(){
+ return `<div class="card p-3">
+ <h4>🎓 Registro de estudiantes</h4>
+ <form id="studentForm" class="row g-2 mb-3">
+  <div class="col-md-4"><input id="stName" class="form-control" placeholder="Nombre" required></div>
+  <div class="col-md-4"><input id="stSubject" class="form-control" placeholder="Materia" value="Programación Avanzada" required></div>
+  <div class="col-md-4"><input id="stGrade" type="number" min="0" max="100" class="form-control" placeholder="Nota" required></div>
+  <div class="col-12"><button class="btn btn-blue">Registrar</button></div>
+ </form>
+ <div class="table-responsive">
+ <table class="table align-middle"><thead><tr><th>Nombre</th><th>Materia</th><th>Nota</th></tr></thead>
+ <tbody>${students.map(s=>`<tr><td>${esc(s.nombre)}</td><td>${esc(s.materia)}</td><td><span class="badge ${s.nota>=51?'bg-success':'bg-danger'}">${s.nota}</span></td></tr>`).join('')}</tbody>
+ </table></div></div>`;
+}
+
+function calculatorPage(){
+ return `<div class="card p-3">
+ <h4>🧮 Calculadora</h4>
+ <input id="calc" class="form-control text-end fs-2 mb-2" value="0" readonly>
+ <div class="row g-2">
+ ${['7','8','9','÷','4','5','6','×','1','2','3','−','0','.','=','+','C'].map(x=>`
+ <div class="col-3"><button class="btn ${['÷','×','−','+','='].includes(x)?'btn-blue':x==='C'?'btn-red':'btn-light'} w-100 fs-4" data-key="${x}">${x}</button></div>`).join('')}
+ </div>
+ </div>`;
+}
+
+function fibonacciPage(){
+ return `<div class="card p-4">
+ <h4>🌀 Serie de Fibonacci</h4>
+ <p class="text-muted">Ingresa N para generar los primeros N términos.</p>
+ <div class="input-group mb-3"><input id="fibN" type="number" min="1" max="100" class="form-control" placeholder="Ej. 10"><button id="fibGo" class="btn btn-red">Generar</button></div>
+ <div id="fibOutput"></div>
+ </div>`;
+}
+
+function viewsPage(){
+ const u=user();
+ const incoming=views.filter(v=>v.vistoId===u.id);
+ const map={};
+ incoming.forEach(v=>map[v.visitanteId]=(map[v.visitanteId]||0)+1);
+ const entries=Object.entries(map).sort((a,b)=>b[1]-a[1]);
+ return `<div class="card p-4">
+ <h4>👁 Quién vio mi perfil</h4>
+ <p class="text-muted">Aquí puedes saber qué compañero entró a tu perfil y cuántas veces.</p>
+ <div class="row text-center my-4">
+  <div class="col-6"><div class="stat">${incoming.length}</div><small>Visitas totales</small></div>
+  <div class="col-6"><div class="stat">${entries.length}</div><small>Personas diferentes</small></div>
+ </div>
+ ${entries.map(([id,count])=>{
+  const x=users.find(z=>z.id===id);if(!x)return '';
+  const last=incoming.filter(v=>v.visitanteId===id).sort((a,b)=>b.fecha.localeCompare(a.fecha))[0];
+  return `<div class="viewer">
+   <img src="${avatar(x.nombre)}" class="avatar">
+   <div class="flex-grow-1"><b>${esc(x.nombre)}</b><br><small>${esc(x.carrera)} · última visita ${dateText(last.fecha)}</small></div>
+   <span class="badge bg-primary">${count} vez${count===1?'':'es'}</span>
+  </div>`;
+ }).join('')||'<p class="text-muted">Todavía nadie ha visitado tu perfil.</p>'}
+ </div>`;
+}
+
+function bindPage(page){
+ if(page==='inicio'){
+  quickPostBtn?.addEventListener('click',()=>createPost(quickPost.value));
+ }
+ if(page==='publicaciones'){
+  postBtn?.addEventListener('click',()=>createPost(postText.value));
+ }
+ if(page==='mascotas'){
+  petForm?.addEventListener('submit',e=>{
+   e.preventDefault();
+   pets.push({id:'pet_'+Date.now(),nombre:petName.value,especie:petSpecies.value,edad:petAge.value,raza:petBreed.value,descripcion:petDesc.value,estado:'Disponible',creador:session});
+   saveAll();renderPage('mascotas');
+  });
+ }
+ if(page==='estudiantes'){
+  studentForm?.addEventListener('submit',e=>{
+   e.preventDefault();
+   students.push({id:'s_'+Date.now(),nombre:stName.value,materia:stSubject.value,nota:Number(stGrade.value)});
+   saveAll();renderPage('estudiantes');
+  });
+ }
+ if(page==='calculadora')setupCalculator();
+ if(page==='fibonacci'){
+  fibGo?.addEventListener('click',()=>{
+   const n=Number(fibN.value);
+   if(!Number.isInteger(n)||n<1||n>100){
+    fibOutput.innerHTML='<div class="alert alert-warning">Ingresa un número entero entre 1 y 100.</div>';return;
+   }
+   let a=0,b=1,s=[];
+   for(let i=0;i<n;i++){s.push(a);[a,b]=[b,a+b]}
+   fibOutput.innerHTML='<div>'+s.map((v,i)=>`<span class="badge bg-primary m-1 p-2">F(${i+1}) = ${v}</span>`).join('')+'</div>';
+  });
+ }
+}
+
+function setupCalculator(){
+ let exp='';
+ const d=document.getElementById('calc');
+ document.querySelectorAll('[data-key]').forEach(b=>{
+  b.onclick=()=>{
+   const x=b.dataset.key;
+   if(x==='C'){exp='';d.value='0';return}
+   if(x==='='){
+    try{
+     const safe=exp.replaceAll('÷','/').replaceAll('×','*').replaceAll('−','-');
+     if(!/^[0-9+*/(). -]+$/.test(safe))throw Error();
+     exp=String(Function('"use strict";return ('+safe+')')());
+     d.value=exp;
+    }catch{exp='';d.value='Error'}
+   }else{
+    exp+=x;d.value=exp||'0';
+   }
+  };
+ });
+}
+
+function renderPeopleMini(){
+ const box=document.getElementById('peopleMini');
+ box.innerHTML=users.filter(x=>x.id!==session).slice(0,6).map(x=>`
+ <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="cursor:pointer" onclick="openUserProfile('${x.id}')">
+  <img src="${avatar(x.nombre)}" class="avatar">
+  <div><b>${esc(x.nombre)}</b><br><small class="text-muted">${esc(x.carrera)}</small></div>
+ </div>`).join('')||'<small class="text-muted">No hay compañeros.</small>';
+}
+
+function renderActivityMini(){
+ const box=document.getElementById('activityMini');
+ const incoming=views.filter(v=>v.vistoId===session);
+ const latest=incoming.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,4);
+ box.innerHTML=latest.map(v=>{
+  const x=users.find(u=>u.id===v.visitanteId);if(!x)return '';
+  return `<div class="small border-bottom py-2"><b>${esc(x.nombre)}</b> visitó tu perfil<br><span class="text-muted">${dateText(v.fecha)}</span></div>`;
+ }).join('')||'<small class="text-muted">Sin actividad todavía.</small>';
+}
+
+function emptyCard(text){return `<div class="card p-4 text-center text-muted">${text}</div>`}
+
+searchInput?.addEventListener('input',()=>{
+ const q=searchInput.value.toLowerCase();
+ if(!q)return;
+ const found=users.filter(u=>u.nombre.toLowerCase().includes(q));
+ if(found.length){currentPage='compañeros';renderPage('compañeros');}
+});
+
+saveAll();
+if(session&&user())showApp();else showAuth();
+</script>
+</body>
+</html>
