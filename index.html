@@ -141,6 +141,7 @@ body{margin:0;background:var(--fondo);color:var(--texto);font-family:Segoe UI,Ar
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ================================================================
    AULA SOCIAL - SISTEMA INTEGRADO PARA UN SOLO CURSO
@@ -158,36 +159,46 @@ body{margin:0;background:var(--fondo);color:var(--texto);font-family:Segoe UI,Ar
    - Fibonacci
 
    NOTA:
-   Esta versión usa localStorage para funcionar como prototipo
-   sin servidor. Para uso real entre diferentes dispositivos se
-   debe conectar a un backend y una base de datos.
+   Esta versión usa Supabase para autenticación y persistencia
+   de usuarios, publicaciones, mascotas, estudiantes y visitas.
 ================================================================ */
 
-const K={
- users:'aula_users',
- posts:'aula_posts',
- pets:'aula_pets',
- students:'aula_students',
- views:'aula_views',
- session:'aula_session'
-};
+const SUPABASE_URL='https://jumnvlulddknolirblxh.supabase.co';
+const SUPABASE_KEY='sb_publishable_Xhh5UXZBhpyGzjYg_nwEpw_8d7637fu';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let users=JSON.parse(localStorage.getItem(K.users)||'[]');
-let posts=JSON.parse(localStorage.getItem(K.posts)||'[]');
-let pets=JSON.parse(localStorage.getItem(K.pets)||'[]');
-let students=JSON.parse(localStorage.getItem(K.students)||'[]');
-let views=JSON.parse(localStorage.getItem(K.views)||'[]');
-let session=localStorage.getItem(K.session);
-let currentPage='inicio';
+let users=[],posts=[],pets=[],students=[],views=[],session=null,currentPage='inicio';
 
-function saveAll(){
- localStorage.setItem(K.users,JSON.stringify(users));
- localStorage.setItem(K.posts,JSON.stringify(posts));
- localStorage.setItem(K.pets,JSON.stringify(pets));
- localStorage.setItem(K.students,JSON.stringify(students));
- localStorage.setItem(K.views,JSON.stringify(views));
-}
 function user(){return users.find(x=>x.id===session)}
+
+function mapProfile(x){
+ return {id:x.id,nombre:x.nombre||'',carrera:x.carrera||'',email:x.email||'',fecha:x.fecha||x.created_at||new Date().toISOString()};
+}
+
+async function loadData(){
+ if(!session)return;
+ try{
+  const [uRes,pRes,petRes,sRes,vRes]=await Promise.all([
+   db.from('profiles').select('*').order('created_at',{ascending:true}),
+   db.from('posts').select('*').order('created_at',{ascending:false}),
+   db.from('pets').select('*').order('created_at',{ascending:false}),
+   db.from('students').select('*').order('created_at',{ascending:true}),
+   db.from('profile_views').select('*').order('created_at',{ascending:false})
+  ]);
+  const firstError=[uRes,pRes,petRes,sRes,vRes].find(r=>r.error);
+  if(firstError)throw firstError.error;
+  users=(uRes.data||[]).map(mapProfile);
+  posts=(pRes.data||[]).map(x=>({id:x.id,userId:x.user_id,texto:x.texto||'',fecha:x.fecha||x.created_at,likes:Array.isArray(x.likes)?x.likes:[],comentarios:x.comentarios||0}));
+  pets=(petRes.data||[]).map(x=>({id:x.id,nombre:x.nombre||'',especie:x.especie||'',edad:x.edad,raza:x.raza||'',descripcion:x.descripcion||'',estado:x.estado||'Disponible',creador:x.creador||x.creador_id}));
+  students=(sRes.data||[]).map(x=>({id:x.id,nombre:x.nombre||'',materia:x.materia||'',nota:Number(x.nota||0)}));
+  views=(vRes.data||[]).map(x=>({id:x.id,visitanteId:x.visitante_id,vistoId:x.visto_id,fecha:x.fecha||x.created_at}));
+ }catch(err){
+  console.error('Error cargando Supabase:',err);
+  authMessage.textContent='No se pudieron cargar los datos. Revisa las tablas de Supabase.';
+  authMessage.className='text-center small mt-3 text-danger';
+ }
+}
+
 function avatar(name){
  return 'https://ui-avatars.com/api/?name='+encodeURIComponent(name)+'&background=003399&color=fff&size=200';
 }
@@ -198,19 +209,14 @@ function dateText(iso){
  return new Date(iso).toLocaleString('es-BO',{dateStyle:'short',timeStyle:'short'});
 }
 
-function showApp(){
+async function showApp(){
  if(!user()){showAuth();return}
- authScreen.classList.add('hidden');
- appScreen.classList.remove('hidden');
- topName.textContent=user().nombre;
- topAvatar.src=avatar(user().nombre);
- sideAvatar.src=avatar(user().nombre);
- sideName.textContent=user().nombre;
- sideCareer.textContent=user().carrera;
- renderPeopleMini();
- renderActivityMini();
- renderPage(currentPage);
+ authScreen.classList.add('hidden');appScreen.classList.remove('hidden');
+ topName.textContent=user().nombre;topAvatar.src=avatar(user().nombre);
+ sideAvatar.src=avatar(user().nombre);sideName.textContent=user().nombre;
+ sideCareer.textContent=user().carrera;renderPeopleMini();renderActivityMini();renderPage(currentPage);
 }
+
 function showAuth(){
  authScreen.classList.remove('hidden');
  appScreen.classList.add('hidden');
@@ -225,42 +231,30 @@ registerTab.onclick=()=>{
  registerForm.classList.remove('hidden');loginForm.classList.add('hidden');
 };
 
-registerForm.addEventListener('submit',e=>{
+registerForm.addEventListener('submit',async e=>{
  e.preventDefault();
- const email=regEmail.value.trim().toLowerCase();
- if(users.some(x=>x.email===email)){
-  authMessage.textContent='El correo ya está registrado.';
-  authMessage.className='text-center small mt-3 text-danger';return;
+ authMessage.textContent='Creando cuenta...';authMessage.className='text-center small mt-3 text-muted';
+ const nombre=regName.value.trim(),carrera=regCareer.value.trim(),email=regEmail.value.trim().toLowerCase(),password=regPassword.value;
+ const {data,error}=await db.auth.signUp({email,password,options:{data:{nombre,carrera}}});
+ if(error){authMessage.textContent=error.message;authMessage.className='text-center small mt-3 text-danger';return;}
+ if(data.user){
+  // El perfil se crea automaticamente mediante el trigger de Supabase.
  }
- const nuevo={
-  id:'u_'+Date.now(),
-  nombre:regName.value.trim(),
-  carrera:regCareer.value.trim(),
-  email:email,
-  password:regPassword.value,
-  fecha:new Date().toISOString()
- };
- users.push(nuevo);
- session=nuevo.id;
- localStorage.setItem(K.session,session);
- saveAll();showApp();
+ if(data.session){session=data.user.id;await loadData();showApp();}
+ else{authMessage.textContent='Cuenta creada. Revisa tu correo para confirmar la cuenta y luego inicia sesión.';authMessage.className='text-center small mt-3 text-success';registerForm.reset();}
 });
 
-loginForm.addEventListener('submit',e=>{
+loginForm.addEventListener('submit',async e=>{
  e.preventDefault();
- const email=loginEmail.value.trim().toLowerCase();
- const encontrado=users.find(x=>x.email===email&&x.password===loginPassword.value);
- if(!encontrado){
-  authMessage.textContent='Correo o contraseña incorrectos.';
-  authMessage.className='text-center small mt-3 text-danger';return;
- }
- session=encontrado.id;
- localStorage.setItem(K.session,session);
- showApp();
+ authMessage.textContent='Iniciando sesión...';authMessage.className='text-center small mt-3 text-muted';
+ const email=loginEmail.value.trim().toLowerCase(),password=loginPassword.value;
+ const {data,error}=await db.auth.signInWithPassword({email,password});
+ if(error){authMessage.textContent='Correo o contraseña incorrectos.';authMessage.className='text-center small mt-3 text-danger';return;}
+ session=data.user.id;await loadData();showApp();
 });
 
-logoutBtn.onclick=()=>{
- localStorage.removeItem(K.session);session=null;showAuth();
+logoutBtn.onclick=async()=>{
+ await db.auth.signOut();session=null;users=[];posts=[];pets=[];students=[];views=[];showAuth();
 };
 
 document.querySelectorAll('.menu-item').forEach(item=>{
@@ -348,17 +342,20 @@ function postHTML(p){
  </div>`;
 }
 
-function createPost(text){
+async function createPost(text){
  if(!text.trim())return;
- posts.push({id:'p_'+Date.now(),userId:session,texto:text.trim(),fecha:new Date().toISOString(),likes:[],comentarios:0});
- saveAll();renderPage(currentPage);
+ const nuevo={id:crypto.randomUUID(),user_id:session,texto:text.trim(),fecha:new Date().toISOString(),likes:[],comentarios:0};
+ const {error}=await db.from('posts').insert(nuevo);
+ if(error){alert('No se pudo publicar: '+error.message);return;}
+ posts.unshift({id:nuevo.id,userId:session,texto:nuevo.texto,fecha:nuevo.fecha,likes:[],comentarios:0});renderPage(currentPage);
 }
-function likePost(id){
+async function likePost(id){
  const p=posts.find(x=>x.id===id);if(!p)return;
- p.likes=p.likes||[];
- const i=p.likes.indexOf(session);
+ p.likes=p.likes||[];const i=p.likes.indexOf(session);
  if(i>=0)p.likes.splice(i,1);else p.likes.push(session);
- saveAll();renderPage(currentPage);
+ const {error}=await db.from('posts').update({likes:p.likes}).eq('id',id);
+ if(error){alert('No se pudo actualizar el Me gusta: '+error.message);return;}
+ renderPage(currentPage);
 }
 
 function postsPage(){
@@ -398,16 +395,13 @@ function profilePage(id){
  `;
 }
 
-function openUserProfile(id){
+async function openUserProfile(id){
  if(id!==session){
-  views.push({
-   id:'v_'+Date.now()+'_'+Math.random().toString(36).slice(2),
-   visitanteId:session,vistoId:id,fecha:new Date().toISOString()
-  });
-  saveAll();
+  const nuevo={id:crypto.randomUUID(),visitante_id:session,visto_id:id,fecha:new Date().toISOString()};
+  const {error}=await db.from('profile_views').insert(nuevo);
+  if(!error)views.unshift({id:nuevo.id,visitanteId:session,vistoId:id,fecha:nuevo.fecha});
  }
- renderPage('perfil');
- renderPeopleMini();renderActivityMini();
+ renderPage('perfil');renderPeopleMini();renderActivityMini();
 }
 
 function peoplePage(){
@@ -453,9 +447,12 @@ function petsPage(){
  </div>`).join('')||'<div class="col-12"><p class="text-muted">No hay mascotas registradas.</p></div>'}
  </div>`;
 }
-function togglePet(id){
+async function togglePet(id){
  const p=pets.find(x=>x.id===id);if(!p)return;
- p.estado=p.estado==='Disponible'?'Adoptado':'Disponible';saveAll();renderPage('mascotas');
+ p.estado=p.estado==='Disponible'?'Adoptado':'Disponible';
+ const {error}=await db.from('pets').update({estado:p.estado}).eq('id',id);
+ if(error){alert('No se pudo actualizar la mascota: '+error.message);return;}
+ renderPage('mascotas');
 }
 
 function studentsPage(){
@@ -526,14 +523,14 @@ function bindPage(page){
   postBtn?.addEventListener('click',()=>createPost(postText.value));
  }
  if(page==='mascotas'){
-  petForm?.addEventListener('submit',e=>{
+  petForm?.addEventListener('submit',async e=>{
    e.preventDefault();
    pets.push({id:'pet_'+Date.now(),nombre:petName.value,especie:petSpecies.value,edad:petAge.value,raza:petBreed.value,descripcion:petDesc.value,estado:'Disponible',creador:session});
    saveAll();renderPage('mascotas');
   });
  }
  if(page==='estudiantes'){
-  studentForm?.addEventListener('submit',e=>{
+  studentForm?.addEventListener('submit',async e=>{
    e.preventDefault();
    students.push({id:'s_'+Date.now(),nombre:stName.value,materia:stSubject.value,nota:Number(stGrade.value)});
    saveAll();renderPage('estudiantes');
@@ -602,8 +599,15 @@ searchInput?.addEventListener('input',()=>{
  if(found.length){currentPage='compañeros';renderPage('compañeros');}
 });
 
-saveAll();
-if(session&&user())showApp();else showAuth();
+(async()=>{
+ const {data}=await db.auth.getSession();
+ session=data.session?.user?.id||null;
+ if(session){await loadData();showApp();}else showAuth();
+ db.auth.onAuthStateChange(async(_event,authSession)=>{
+  session=authSession?.user?.id||null;
+  if(session){await loadData();showApp();}
+ });
+})();
 </script>
 </body>
 </html>
